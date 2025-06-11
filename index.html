@@ -85,24 +85,7 @@ async function getTicket() {
   document.getElementById('stackinfo').textContent = ` — QRNG stack size: ${quantumStack.length}`;
 }
 
-async function buyTicket() {
-  if (!currTicket) return;
-  let body = {
-    ticket: {
-      WhiteBalls: currTicket.numbers.sort((a,b)=>a-b).join('-'),
-      Mega: currTicket.mega,
-      ts: new Date().toISOString()
-    }
-  };
-  await fetch(SHEETY_API, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body)
-  });
-  showHistory();
-  document.getElementById('buyBtn').style.display = "none";
-  document.getElementById('curr').innerHTML = "<b>Ticket saved to cloud!</b>";
-}
+async function buyTicket() { if (!currTicket) return; let payload = { ticket: { WhiteBalls: currTicket.numbers.sort((a,b)=>a-b).join('-'), Mega: currTicket.mega, ts: new Date().toISOString() } }; console.log("Payload to send:", payload); const res = await fetch("https://api.sheety.co/83c05ff7ada9d2bda253c3d009eb241c/ticketTracker/tickets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const result = await res.json(); console.log("API response:", result); showHistory(); document.getElementById('buyBtn').style.display = "none"; document.getElementById('curr').innerHTML = "<b>Ticket saved to cloud!</b>"; }
 
 async function showHistory() {
   let res = await fetch(SHEETY_API);
