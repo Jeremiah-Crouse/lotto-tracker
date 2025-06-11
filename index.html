@@ -87,7 +87,7 @@ async function getTicket() {
 async function buyTicket() {
   if (!currTicket) return;
   let payload = {
-    tickets: {
+    ticket: {
       WhiteBalls: currTicket.numbers.sort((a,b)=>a-b).join('-'),
       Mega: currTicket.mega,
       ts: new Date().toISOString()
