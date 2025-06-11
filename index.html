@@ -30,15 +30,14 @@
   <span class="small" id="stackinfo"></span>
   <div id="curr"></div>
   <button id="buyBtn" onclick="buyTicket()" style="display:none">Buy This Ticket</button>
+  <button id="clearBtn" onclick="clearHistory()" style="background:#c62828;margin-top:10px;">Clear History</button>
   <h3>Saved Tickets (cloud log):</h3>
   <div id="history"></div>
 <script>
 let currTicket = null;
 let quantumStack = [];
 const STACKSIZE = 1024;
-
-// === UPDATE THIS WITH YOUR SheetDB API endpoint! ===
-const SHEETDB_API = "https://sheetdb.io/api/v1/80qlk6h5zjw72"; // e.g., sheetdb.io/api/v1/abcd123xyz
+const SHEETDB_API = "https://sheetdb.io/api/v1/80qlk6h5zjw72"; // replace with your real endpoint
 
 async function refillQuantumStack() {
   document.getElementById('stackinfo').textContent = " — Loading quantum numbers...";
@@ -57,9 +56,7 @@ async function refillQuantumStack() {
 async function getTicket() {
   document.getElementById('curr').innerHTML = "Drawing from quantum stack...";
   document.getElementById('buyBtn').style.display = "none";
-  // Refill stack in background if running low
   if (quantumStack.length < 20) refillQuantumStack();
-  // Block until at least 6 quantum numbers loaded
   while (quantumStack.length < 6) {
     await refillQuantumStack();
   }
@@ -101,6 +98,14 @@ async function buyTicket() {
   showHistory();
   document.getElementById('buyBtn').style.display = "none";
   document.getElementById('curr').innerHTML = "<b>Ticket saved to SheetDB!</b>";
+}
+
+async function clearHistory() {
+  if (!confirm('Are you sure you want to clear all saved tickets? This cannot be undone.')) return;
+  await fetch(`${SHEETDB_API}/all`, {
+    method: "DELETE"
+  });
+  showHistory();
 }
 
 async function showHistory() {
