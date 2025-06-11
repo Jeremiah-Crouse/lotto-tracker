@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mega Millions Quantum Lotto (Sheety)</title>
+  <title>Mega Millions Quantum Lotto (SheetDB)</title>
   <style>
     body { background: #1e2127; color: #fff; font-family: sans-serif; max-width:540px; margin:3em auto; padding: 2em;}
     button { font-size: 1.1em; padding: 0.7em 2em; border-radius: 8px;}
@@ -25,22 +25,21 @@
   </style>
 </head>
 <body>
-  <h2>Mega Millions Quantum Lotto (Sheety cloud log)</h2>
+  <h2>Mega Millions Quantum Lotto (SheetDB cloud log)</h2>
   <button id="getBtn" onclick="getTicket()">Generate Quantum Ticket</button>
   <span class="small" id="stackinfo"></span>
   <div id="curr"></div>
   <button id="buyBtn" onclick="buyTicket()" style="display:none">Buy This Ticket</button>
-  <h3>Saved Tickets (in the cloud):</h3>
+  <h3>Saved Tickets (cloud log):</h3>
   <div id="history"></div>
 <script>
 let currTicket = null;
 let quantumStack = [];
 const STACKSIZE = 1024;
-// Use your real Sheety API endpoint:
-//const SHEETY_API = "https://api.sheety.co/83c05ff7ada9d2bda253c3d009eb241c/ticketTracker/tickets";
-const SHEETY_API = "https://api.sheety.co/83c05ff7ada9d2bda253c3d009eb241c/ticketTracker/tickets";
 
-// Load N quantum ints as a stack
+// === UPDATE THIS WITH YOUR SheetDB API endpoint! ===
+const SHEETDB_API = "https://sheetdb.io/api/v1/80qlk6h5zjw72"; // e.g., sheetdb.io/api/v1/abcd123xyz
+
 async function refillQuantumStack() {
   document.getElementById('stackinfo').textContent = " — Loading quantum numbers...";
   try {
@@ -58,7 +57,9 @@ async function refillQuantumStack() {
 async function getTicket() {
   document.getElementById('curr').innerHTML = "Drawing from quantum stack...";
   document.getElementById('buyBtn').style.display = "none";
+  // Refill stack in background if running low
   if (quantumStack.length < 20) refillQuantumStack();
+  // Block until at least 6 quantum numbers loaded
   while (quantumStack.length < 6) {
     await refillQuantumStack();
   }
@@ -85,13 +86,26 @@ async function getTicket() {
   document.getElementById('stackinfo').textContent = ` — QRNG stack size: ${quantumStack.length}`;
 }
 
-async function buyTicket() { if (!currTicket) return; let payload = { ticket: { WhiteBalls: currTicket.numbers.sort((a,b)=>a-b).join('-'), Mega: currTicket.mega, ts: new Date().toISOString() } }; console.log("Payload to send:", payload); const res = await fetch("https://api.sheety.co/83c05ff7ada9d2bda253c3d009eb241c/ticketTracker/tickets", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) }); const result = await res.json(); console.log("API response:", result); showHistory(); document.getElementById('buyBtn').style.display = "none"; document.getElementById('curr').innerHTML = "<b>Ticket saved to cloud!</b>"; }
+async function buyTicket() {
+  if (!currTicket) return;
+  let payload = {
+    WhiteBalls: currTicket.numbers.sort((a,b)=>a-b).join('-'),
+    Mega: currTicket.mega,
+    ts: new Date().toISOString()
+  };
+  await fetch(SHEETDB_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ data: [payload] })
+  });
+  showHistory();
+  document.getElementById('buyBtn').style.display = "none";
+  document.getElementById('curr').innerHTML = "<b>Ticket saved to SheetDB!</b>";
+}
 
 async function showHistory() {
-  let res = await fetch(SHEETY_API);
-  let data = await res.json();
-  let tickets = data.sheet1 || data.tickets || data.sheet1s || [];
-  if (!Array.isArray(tickets)) tickets = [];
+  let res = await fetch(SHEETDB_API);
+  let tickets = await res.json();
   document.getElementById('history').innerHTML =
     tickets.length ?
       tickets.map(
@@ -100,7 +114,7 @@ async function showHistory() {
           <br><b>White Balls:</b> ${l.WhiteBalls ? l.WhiteBalls.split('-').map(x=>`<span class="ball">${x}</span>`).join('') : ''}
           <br><b>Mega Ball:</b> <span class="ball mega">${l.Mega || ''}</span>
         </div>`).join("")
-      : "<i>No tickets saved yet (cloud log empty).</i>";
+      : "<i>No tickets saved yet (SheetDB cloud empty).</i>";
 }
 
 window.onload = async function() {
