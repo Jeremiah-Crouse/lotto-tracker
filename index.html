@@ -8,9 +8,15 @@
     button { font-size: 1.1em; padding: 0.7em 2em; border-radius: 8px;}
     .nums { font-size: 1.3em; margin:1em; }
     .ball { 
-      display:inline-block; width:2em; height:2em; line-height:2em;
+      display:inline-flex; /* instead of inline-block */
+      align-items:center;
+      justify-content:center;
+      width:2em; height:2em; 
       background: #fafafa; color:#222; border-radius:50%; font-weight:bold;
-      margin: 0.12em 0.18em; box-shadow:0 2px 9px #0006; border: 2.5px solid #cadaee;}
+      margin: 0.12em 0.18em; box-shadow:0 2px 9px #0006; border: 2.5px solid #cadaee;
+      font-size: 1em;
+      text-align: center;
+    }
     .mega { 
       background: #ffd600 !important; color: #232100 !important; border: 2.5px solid #ffe970 !important; 
     }
