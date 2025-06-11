@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mega Millions Quantum Lotto via Sheety</title>
+  <title>Mega Millions Quantum Lotto (Sheety)</title>
   <style>
     body { background: #1e2127; color: #fff; font-family: sans-serif; max-width:540px; margin:3em auto; padding: 2em;}
     button { font-size: 1.1em; padding: 0.7em 2em; border-radius: 8px;}
@@ -25,18 +25,18 @@
   </style>
 </head>
 <body>
-  <h2>Mega Millions Quantum Lotto (Sheety Synced)</h2>
+  <h2>Mega Millions Quantum Lotto (Sheety cloud log)</h2>
   <button id="getBtn" onclick="getTicket()">Generate Quantum Ticket</button>
   <span class="small" id="stackinfo"></span>
   <div id="curr"></div>
   <button id="buyBtn" onclick="buyTicket()" style="display:none">Buy This Ticket</button>
-  <h3>Saved Tickets (in Google Sheet):</h3>
+  <h3>Saved Tickets (in the cloud):</h3>
   <div id="history"></div>
 <script>
 let currTicket = null;
 let quantumStack = [];
 const STACKSIZE = 1024;
-// CHANGE THIS TO YOUR REAL SHEETY API ENDPOINT:
+// Use your real Sheety API endpoint:
 const SHEETY_API = "https://api.sheety.co/83c05ff7ada9d2bda253c3d009eb241c/tickets/sheet1";
 
 // Load N quantum ints as a stack
@@ -92,7 +92,6 @@ async function buyTicket() {
       Mega: currTicket.mega,
       ts: new Date().toISOString()
     }
-    
   };
   await fetch(SHEETY_API, {
     method: "POST",
@@ -107,14 +106,15 @@ async function buyTicket() {
 async function showHistory() {
   let res = await fetch(SHEETY_API);
   let data = await res.json();
-  let tickets = data.tickets || [];
+  let tickets = data.sheet1 || data.tickets || data.sheet1s || [];
+  if (!Array.isArray(tickets)) tickets = [];
   document.getElementById('history').innerHTML =
     tickets.length ?
       tickets.map(
         l => `<div class="log">
-          <span class="logtime">${new Date(l.ts).toLocaleString()}</span>
-          <br><b>White Balls:</b> ${l.WhiteBalls.split('-').map(x=>`<span class="ball">${x}</span>`).join('')}
-          <br><b>Mega Ball:</b> <span class="ball mega">${l.Mega}</span>
+          <span class="logtime">${l.ts ? new Date(l.ts).toLocaleString() : ''}</span>
+          <br><b>White Balls:</b> ${l.WhiteBalls ? l.WhiteBalls.split('-').map(x=>`<span class="ball">${x}</span>`).join('') : ''}
+          <br><b>Mega Ball:</b> <span class="ball mega">${l.Mega || ''}</span>
         </div>`).join("")
       : "<i>No tickets saved yet (cloud log empty).</i>";
 }
