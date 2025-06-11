@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mega Millions Quantum Lotto Tracker (with QRNG Stack)</title>
+  <title>Mega Millions Quantum Lotto via Sheety</title>
   <style>
     body { background: #1e2127; color: #fff; font-family: sans-serif; max-width:540px; margin:3em auto; padding: 2em;}
     button { font-size: 1.1em; padding: 0.7em 2em; border-radius: 8px;}
@@ -21,32 +21,25 @@
     }
     .log { background:#2b2f3a; margin: 1em 0; border-radius:6px; padding: 1em; }
     .logtime { color:#fea340; font-size:0.95em;}
-    .uploader { margin: 1.5em 0;}
-    input[type="file"] {color:#fff;}
     .small { color:#ffd600; font-size:1.1em; }
   </style>
 </head>
 <body>
-  <h2>Mega Millions Quantum Lotto Tracker (QRNG Stack)</h2>
+  <h2>Mega Millions Quantum Lotto (Sheety Synced)</h2>
   <button id="getBtn" onclick="getTicket()">Generate Quantum Ticket</button>
   <span class="small" id="stackinfo"></span>
   <div id="curr"></div>
   <button id="buyBtn" onclick="buyTicket()" style="display:none">Buy This Ticket</button>
-  <div class="uploader">
-    <button onclick="saveHistory()">Save History</button>
-    <label style="display:inline-block">
-      <input type="file" id="loadInput" style="display:none" onchange="loadHistory(event)">
-      <button onclick="document.getElementById('loadInput').click()">Load History</button>
-    </label>
-    <button onclick="clearHistory()">Clear History</button>
-  </div>
-  <h3>Saved Tickets:</h3>
+  <h3>Saved Tickets (in Google Sheet):</h3>
   <div id="history"></div>
 <script>
 let currTicket = null;
 let quantumStack = [];
 const STACKSIZE = 1024;
+// CHANGE THIS TO YOUR REAL SHEETY API ENDPOINT:
+const SHEETY_API = "https://api.sheety.co/83c05ff7ada9d2bda253c3d009eb241c/tickets/sheet1";
 
+// Load N quantum ints as a stack
 async function refillQuantumStack() {
   document.getElementById('stackinfo').textContent = " — Loading quantum numbers...";
   try {
@@ -64,20 +57,17 @@ async function refillQuantumStack() {
 async function getTicket() {
   document.getElementById('curr').innerHTML = "Drawing from quantum stack...";
   document.getElementById('buyBtn').style.display = "none";
-  // Refill if needed (async, doesn't block current batch, just guarantees new numbers for future draws)
   if (quantumStack.length < 20) refillQuantumStack();
-  // If somehow totally run out, force wait
   while (quantumStack.length < 6) {
     await refillQuantumStack();
   }
-  // Draw numbers from stack
   let nums = [], i = 0;
   while (nums.length < 5 && i < quantumStack.length) {
     let n = Math.floor((quantumStack[i] / 65535) * 70) + 1;
     if (!nums.includes(n)) nums.push(n);
     i++;
   }
-  quantumStack = quantumStack.slice(i); // remove consumed numbers
+  quantumStack = quantumStack.slice(i);
   if (nums.length < 5) {
     document.getElementById('curr').innerHTML = "<b>Not enough unique numbers, try again!</b>";
     return;
@@ -94,66 +84,38 @@ async function getTicket() {
   document.getElementById('stackinfo').textContent = ` — QRNG stack size: ${quantumStack.length}`;
 }
 
-function buyTicket() {
+async function buyTicket() {
   if (!currTicket) return;
-  let logs = JSON.parse(localStorage.getItem('lottoLog')||'[]');
-  logs.push({
-    numbers: currTicket.numbers,
-    mega: currTicket.mega,
-    ts: new Date().toISOString()
-  });
-  localStorage.setItem('lottoLog', JSON.stringify(logs));
-  showHistory();
-  document.getElementById('buyBtn').style.display = "none";
-  document.getElementById('curr').innerHTML = "<b>Ticket logged!</b>";
-}
-
-function showHistory() {
-  let logs = JSON.parse(localStorage.getItem('lottoLog')||'[]');
-  document.getElementById('history').innerHTML =
-    logs.length ?
-      logs.map(
-        l => `<div class="log">
-          <span class="logtime">${new Date(l.ts).toLocaleString()}</span>
-          <br><b>White Balls:</b> ${l.numbers.sort((a,b)=>a-b).map(x=>`<span class="ball">${x}</span>`).join('')}
-          <br><b>Mega Ball:</b> <span class="ball mega">${l.mega}</span>
-        </div>`).join("")
-      : "<i>No tickets saved yet.</i>";
-}
-
-// --- Save/Load/Clear History ---
-function saveHistory() {
-  let logs = JSON.parse(localStorage.getItem('lottoLog')||'[]');
-  let blob = new Blob([JSON.stringify(logs, null, 2)], {type: 'application/json'});
-  let a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = 'lotto-history.json';
-  document.body.appendChild(a);
-  a.click();
-  setTimeout(()=>{document.body.removeChild(a);}, 200);
-}
-function loadHistory(event) {
-  let file = event.target.files[0];
-  if (!file) return;
-  let reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      let logs = JSON.parse(e.target.result);
-      if (!Array.isArray(logs)) throw "Bad file";
-      localStorage.setItem('lottoLog', JSON.stringify(logs));
-      showHistory();
-      alert("History loaded successfully!");
-    } catch {
-      alert("Invalid or corrupt history file.");
+  let payload = {
+    ticket: {
+      WhiteBalls: currTicket.numbers.sort((a,b)=>a-b).join('-'),
+      Mega: currTicket.mega,
+      ts: new Date().toISOString()
     }
   };
-  reader.readAsText(file);
-}
-function clearHistory() {
-  localStorage.removeItem('lottoLog');
+  await fetch(SHEETY_API, {
+    method: "POST",
+    headers: {"Content-Type": "application/json"},
+    body: JSON.stringify(payload)
+  });
   showHistory();
-  document.getElementById('curr').innerHTML = "";
   document.getElementById('buyBtn').style.display = "none";
+  document.getElementById('curr').innerHTML = "<b>Ticket saved to cloud!</b>";
+}
+
+async function showHistory() {
+  let res = await fetch(SHEETY_API);
+  let data = await res.json();
+  let tickets = data.tickets || [];
+  document.getElementById('history').innerHTML =
+    tickets.length ?
+      tickets.map(
+        l => `<div class="log">
+          <span class="logtime">${new Date(l.ts).toLocaleString()}</span>
+          <br><b>White Balls:</b> ${l.WhiteBalls.split('-').map(x=>`<span class="ball">${x}</span>`).join('')}
+          <br><b>Mega Ball:</b> <span class="ball mega">${l.Mega}</span>
+        </div>`).join("")
+      : "<i>No tickets saved yet (cloud log empty).</i>";
 }
 
 window.onload = async function() {
