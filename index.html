@@ -2,23 +2,22 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mega Millions Quantum Lotto Tracker (Browser Only)</title>
+  <title>Mega Millions Quantum Lotto Tracker</title>
   <style>
     body { background: #1e2127; color: #fff; font-family: sans-serif; max-width:540px; margin:3em auto; padding: 2em;}
     button { font-size: 1.1em; padding: 0.7em 2em; border-radius: 8px;}
     .nums { font-size: 1.3em; margin:1em; }
-    .ball { 
-      display:inline-flex; /* instead of inline-block */
-      align-items:center;
-      justify-content:center;
-      width:2em; height:2em; 
+    .ball {
+      display: inline-flex; align-items: center; justify-content: center;
+      width:2em; height:2em; line-height:2em;
       background: #fafafa; color:#222; border-radius:50%; font-weight:bold;
       margin: 0.12em 0.18em; box-shadow:0 2px 9px #0006; border: 2.5px solid #cadaee;
-      font-size: 1em;
-      text-align: center;
+      font-size: 1em; text-align: center;
     }
-    .mega { 
-      background: #ffd600 !important; color: #232100 !important; border: 2.5px solid #ffe970 !important; 
+    .mega {
+      background: #ffd600 !important;
+      color: #232100 !important;
+      border: 2.5px solid #ffe970 !important;
     }
     .log { background:#2b2f3a; margin: 1em 0; border-radius:6px; padding: 1em; }
     .logtime { color:#fea340; font-size:0.95em;}
@@ -35,25 +34,30 @@
   <div id="history"></div>
 <script>
 let currTicket = null;
-let cooldown = 0, cooldownTimer = null;
+let cooldownEnd = null;
+let cooldownTimer = null;
 
 function startCooldown() {
-  cooldown = 60;
+  cooldownEnd = Date.now() + 60 * 1000; // 1 minute from now
   document.getElementById('getBtn').disabled = true;
   updateCooldown();
-  cooldownTimer = setInterval(() => {
-    cooldown--;
-    updateCooldown();
-    if (cooldown <= 0) {
-      clearInterval(cooldownTimer);
-      document.getElementById('cooldown').textContent = "";
-      document.getElementById('getBtn').disabled = false;
-    }
-  }, 1000);
+  if (cooldownTimer) clearInterval(cooldownTimer);
+  cooldownTimer = setInterval(updateCooldown, 175);
 }
 function updateCooldown() {
-  document.getElementById('cooldown').textContent = cooldown > 0 
-    ? `Please wait ${cooldown} second${cooldown !== 1 ? 's' : ''} before next ticket.` : '';
+  if (!cooldownEnd) return;
+  let ms = cooldownEnd - Date.now();
+  if (ms <= 0) {
+    clearInterval(cooldownTimer);
+    cooldownTimer = null;
+    cooldownEnd = null;
+    document.getElementById('cooldown').textContent = '';
+    document.getElementById('getBtn').disabled = false;
+    return;
+  }
+  let s = Math.ceil(ms / 1000);
+  document.getElementById('cooldown').textContent =
+    `Please wait ${s} second${s !== 1 ? 's' : ''} before next ticket.`;
 }
 
 async function getTicket() {
