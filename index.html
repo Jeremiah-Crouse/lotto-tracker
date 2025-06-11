@@ -37,6 +37,7 @@ let currTicket = null;
 let quantumStack = [];
 const STACKSIZE = 1024;
 // Use your real Sheety API endpoint:
+//const SHEETY_API = "https://api.sheety.co/83c05ff7ada9d2bda253c3d009eb241c/ticketTracker/tickets";
 const SHEETY_API = "https://api.sheety.co/83c05ff7ada9d2bda253c3d009eb241c/ticketTracker/tickets";
 
 // Load N quantum ints as a stack
@@ -86,24 +87,18 @@ async function getTicket() {
 
 async function buyTicket() {
   if (!currTicket) return;
-  let url = 'https://api.sheety.co/83c05ff7ada9d2bda253c3d009eb241c/ticketTracker/tickets';
   let body = {
-   ticket: {
+    ticket: {
       WhiteBalls: currTicket.numbers.sort((a,b)=>a-b).join('-'),
       Mega: currTicket.mega,
       ts: new Date().toISOString()
     }
-  }
-  fetch(url, {
-    method: 'POST',
+  };
+  await fetch(SHEETY_API, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify(body)
-  })
-  .then((response) => response.json())
-  .then(json => {
-    // Do something with object
-    console.log(json.ticket);
   });
-  
   showHistory();
   document.getElementById('buyBtn').style.display = "none";
   document.getElementById('curr').innerHTML = "<b>Ticket saved to cloud!</b>";
