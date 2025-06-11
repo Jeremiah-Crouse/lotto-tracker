@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Mega Millions Quantum Lotto Tracker (Browser Only)</title>
+  <style>
+    body { background: #1e2127; color: #fff; font-family: sans-serif; max-width:540px; margin:3em auto; padding: 2em;}
+    button { font-size: 1.1em; padding: 0.7em 2em; border-radius: 8px;}
+    .nums { font-size: 1.3em; margin:1em;}
+    .mega { color: #ffd600; font-weight:bold; }
+    .log { background:#2b2f3a; margin: 1em 0; border-radius:6px; padding: 1em; }
+    .logtime { color:#fea340; font-size:0.95em;}
+  </style>
+</head>
+<body>
+  <h2>Mega Millions Quantum Lotto Tracker (Browser Only)</h2>
+  <button onclick="getTicket()">Generate Quantum Ticket</button>
+  <div id="curr"></div>
+  <button id="buyBtn" onclick="buyTicket()" style="display:none">Buy This Ticket</button>
+  <h3>Saved Tickets:</h3>
+  <div id="history"></div>
+<script>
+let currTicket = null;
+
+async function getTicket() {
+  document.getElementById('curr').innerHTML = "Getting quantum numbers from ANU QRNG...";
+  document.getElementById('buyBtn').style.display = "none";
+  try {
+    // Get 10 quantum numbers—plenty for uniqueness!
+    let resp = await fetch('https://qrng.anu.edu.au/API/jsonI.php?length=10&type=uint16');
+    let data = await resp.json();
+    if (!data.success) throw "Quantum error";
+    let d = data.data;
+    // 5 unique balls, 1-70
+    let nums = [], i = 0;
+    while (nums.length < 5 && i < d.length) {
+      let n = Math.floor((d[i] / 65535) * 70) + 1;
+      if (!nums.includes(n)) nums.push(n);
+      i++;
+    }
+    if (nums.length < 5) throw "Too few unique numbers, try again!";
+    let mega = Math.floor((d[d.length-1] / 65535) * 25) + 1;
+    currTicket = {numbers: nums, mega: mega};
+    document.getElementById('curr').innerHTML =
+      `<div class="nums"><b>White Balls:</b> ${nums.sort((a,b)=>a-b).join(' - ')}<br><b>Mega Ball:</b> <span class="mega">${mega}</span></div>`;
+    document.getElementById('buyBtn').style.display = "inline-block";
+  } catch (e) {
+    document.getElementById('curr').innerHTML = "<b>Quantum QRNG error—try again!</b>";
+  }
+}
+
+function buyTicket() {
+  if (!currTicket) return;
+  let logs = JSON.parse(localStorage.getItem('lottoLog')||'[]');
+  logs.push({
+    numbers: currTicket.numbers,
+    mega: currTicket.mega,
+    ts: new Date().toISOString()
+  });
+  localStorage.setItem('lottoLog', JSON.stringify(logs));
+  showHistory();
+  document.getElementById('buyBtn').style.display = "none";
+  document.getElementById('curr').innerHTML = "<b>Ticket logged!</b>";
+}
+
+function showHistory() {
+  let logs = JSON.parse(localStorage.getItem('lottoLog')||'[]');
+  document.getElementById('history').innerHTML =
+    logs.length ?
+      logs.map(
+        l => `<div class="log">
+          <span class="logtime">${new Date(l.ts).toLocaleString()}</span>
+          <br><b>White Balls:</b> ${l.numbers.sort((a,b)=>a-b).join(' - ')}
+          <br><b>Mega Ball:</b> <span class="mega">${l.mega}</span>
+        </div>`).join("")
+      : "<i>No tickets saved yet.</i>";
+}
+window.onload = showHistory;
+</script>
+</body>
+</html>
