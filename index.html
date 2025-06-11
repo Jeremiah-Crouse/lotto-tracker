@@ -125,6 +125,7 @@ async function showHistory() {
 window.onload = async function() {
   await refillQuantumStack();
   showHistory();
+  setInterval(showHistory, 300000); // 5-min auto-refresh
 };
 </script>
 </body>
