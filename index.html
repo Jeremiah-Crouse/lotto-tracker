@@ -22,6 +22,8 @@
     .log { background:#2b2f3a; margin: 1em 0; border-radius:6px; padding: 1em; }
     .logtime { color:#fea340; font-size:0.95em;}
     .cooldown { color:#ffd600; font-size:1.06em; margin-top:0.3em;}
+    .uploader { margin: 1.5em 0;}
+    input[type="file"] {color:#fff;}
   </style>
 </head>
 <body>
@@ -30,6 +32,13 @@
   <div class="cooldown" id="cooldown"></div>
   <div id="curr"></div>
   <button id="buyBtn" onclick="buyTicket()" style="display:none">Buy This Ticket</button>
+  <div class="uploader">
+    <button onclick="saveHistory()">Save History</button>
+    <label style="display:inline-block">
+      <input type="file" id="loadInput" style="display:none" onchange="loadHistory(event)">
+      <button onclick="document.getElementById('loadInput').click()">Load History</button>
+    </label>
+  </div>
   <h3>Saved Tickets:</h3>
   <div id="history"></div>
 <script>
@@ -115,6 +124,39 @@ function showHistory() {
         </div>`).join("")
       : "<i>No tickets saved yet.</i>";
 }
+
+// --- New features below ---
+
+// Save localStorage history to download
+function saveHistory() {
+  let logs = JSON.parse(localStorage.getItem('lottoLog')||'[]');
+  let blob = new Blob([JSON.stringify(logs, null, 2)], {type: 'application/json'});
+  let a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'lotto-history.json';
+  document.body.appendChild(a);
+  a.click();
+  setTimeout(()=>{document.body.removeChild(a);}, 200);
+}
+
+// Load history file and overwrite local history
+function loadHistory(event) {
+  let file = event.target.files[0];
+  if (!file) return;
+  let reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      let logs = JSON.parse(e.target.result);
+      localStorage.setItem('lottoLog', JSON.stringify(logs));
+      showHistory();
+      alert("History loaded successfully!");
+    } catch {
+      alert("Invalid or corrupt history file.");
+    }
+  };
+  reader.readAsText(file);
+}
+
 window.onload = showHistory;
 </script>
 </body>
