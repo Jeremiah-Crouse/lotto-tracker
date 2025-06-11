@@ -33,6 +33,7 @@
   <div id="curr"></div>
   <button id="buyBtn" onclick="buyTicket()" style="display:none">Buy This Ticket</button>
   <div class="uploader">
+    <button onclick="clearHistory()">Clear History</button>
     <button onclick="saveHistory()">Save History</button>
     <label style="display:inline-block">
       <input type="file" id="loadInput" style="display:none" onchange="loadHistory(event)">
@@ -46,6 +47,12 @@ let currTicket = null;
 let cooldownEnd = null;
 let cooldownTimer = null;
 
+function clearHistory() {
+  localStorage.removeItem('lottoLog');
+  showHistory();
+  document.getElementById('curr').innerHTML = "";
+  document.getElementById('buyBtn').style.display = "none";
+}
 function startCooldown() {
   cooldownEnd = Date.now() + 60 * 1000; // 1 minute from now
   document.getElementById('getBtn').disabled = true;
