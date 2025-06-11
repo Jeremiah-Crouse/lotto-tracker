@@ -6,32 +6,59 @@
   <style>
     body { background: #1e2127; color: #fff; font-family: sans-serif; max-width:540px; margin:3em auto; padding: 2em;}
     button { font-size: 1.1em; padding: 0.7em 2em; border-radius: 8px;}
-    .nums { font-size: 1.3em; margin:1em;}
-    .mega { color: #ffd600; font-weight:bold; }
+    .nums { font-size: 1.3em; margin:1em; }
+    .ball { 
+      display:inline-block; width:2em; height:2em; line-height:2em;
+      background: #fafafa; color:#222; border-radius:50%; font-weight:bold;
+      margin: 0.12em 0.18em; box-shadow:0 2px 9px #0006; border: 2.5px solid #cadaee;}
+    .mega { 
+      background: #ffd600 !important; color: #232100 !important; border: 2.5px solid #ffe970 !important; 
+    }
     .log { background:#2b2f3a; margin: 1em 0; border-radius:6px; padding: 1em; }
     .logtime { color:#fea340; font-size:0.95em;}
+    .cooldown { color:#ffd600; font-size:1.06em; margin-top:0.3em;}
   </style>
 </head>
 <body>
   <h2>Mega Millions Quantum Lotto Tracker (Browser Only)</h2>
-  <button onclick="getTicket()">Generate Quantum Ticket</button>
+  <button id="getBtn" onclick="getTicket()">Generate Quantum Ticket</button>
+  <div class="cooldown" id="cooldown"></div>
   <div id="curr"></div>
   <button id="buyBtn" onclick="buyTicket()" style="display:none">Buy This Ticket</button>
   <h3>Saved Tickets:</h3>
   <div id="history"></div>
 <script>
 let currTicket = null;
+let cooldown = 0, cooldownTimer = null;
+
+function startCooldown() {
+  cooldown = 60;
+  document.getElementById('getBtn').disabled = true;
+  updateCooldown();
+  cooldownTimer = setInterval(() => {
+    cooldown--;
+    updateCooldown();
+    if (cooldown <= 0) {
+      clearInterval(cooldownTimer);
+      document.getElementById('cooldown').textContent = "";
+      document.getElementById('getBtn').disabled = false;
+    }
+  }, 1000);
+}
+function updateCooldown() {
+  document.getElementById('cooldown').textContent = cooldown > 0 
+    ? `Please wait ${cooldown} second${cooldown !== 1 ? 's' : ''} before next ticket.` : '';
+}
 
 async function getTicket() {
   document.getElementById('curr').innerHTML = "Getting quantum numbers from ANU QRNG...";
   document.getElementById('buyBtn').style.display = "none";
+  startCooldown();
   try {
-    // Get 10 quantum numbers—plenty for uniqueness!
     let resp = await fetch('https://qrng.anu.edu.au/API/jsonI.php?length=10&type=uint16');
     let data = await resp.json();
     if (!data.success) throw "Quantum error";
     let d = data.data;
-    // 5 unique balls, 1-70
     let nums = [], i = 0;
     while (nums.length < 5 && i < d.length) {
       let n = Math.floor((d[i] / 65535) * 70) + 1;
@@ -42,7 +69,10 @@ async function getTicket() {
     let mega = Math.floor((d[d.length-1] / 65535) * 25) + 1;
     currTicket = {numbers: nums, mega: mega};
     document.getElementById('curr').innerHTML =
-      `<div class="nums"><b>White Balls:</b> ${nums.sort((a,b)=>a-b).join(' - ')}<br><b>Mega Ball:</b> <span class="mega">${mega}</span></div>`;
+      `<div class="nums">
+        <b>White Balls:</b> ${nums.sort((a,b)=>a-b).map(x=>`<span class="ball">${x}</span>`).join('')}
+        <br><b>Mega Ball:</b> <span class="ball mega">${mega}</span>
+      </div>`;
     document.getElementById('buyBtn').style.display = "inline-block";
   } catch (e) {
     document.getElementById('curr').innerHTML = "<b>Quantum QRNG error—try again!</b>";
@@ -70,8 +100,8 @@ function showHistory() {
       logs.map(
         l => `<div class="log">
           <span class="logtime">${new Date(l.ts).toLocaleString()}</span>
-          <br><b>White Balls:</b> ${l.numbers.sort((a,b)=>a-b).join(' - ')}
-          <br><b>Mega Ball:</b> <span class="mega">${l.mega}</span>
+          <br><b>White Balls:</b> ${l.numbers.sort((a,b)=>a-b).map(x=>`<span class="ball">${x}</span>`).join('')}
+          <br><b>Mega Ball:</b> <span class="ball mega">${l.mega}</span>
         </div>`).join("")
       : "<i>No tickets saved yet.</i>";
 }
