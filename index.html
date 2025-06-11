@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Mega Millions Quantum Lotto Tracker</title>
+  <title>Mega Millions Quantum Lotto Tracker (with QRNG Stack)</title>
   <style>
     body { background: #1e2127; color: #fff; font-family: sans-serif; max-width:540px; margin:3em auto; padding: 2em;}
     button { font-size: 1.1em; padding: 0.7em 2em; border-radius: 8px;}
@@ -21,88 +21,77 @@
     }
     .log { background:#2b2f3a; margin: 1em 0; border-radius:6px; padding: 1em; }
     .logtime { color:#fea340; font-size:0.95em;}
-    .cooldown { color:#ffd600; font-size:1.06em; margin-top:0.3em;}
     .uploader { margin: 1.5em 0;}
     input[type="file"] {color:#fff;}
+    .small { color:#ffd600; font-size:1.1em; }
   </style>
 </head>
 <body>
-  <h2>Mega Millions Quantum Lotto Tracker (Browser Only)</h2>
+  <h2>Mega Millions Quantum Lotto Tracker (QRNG Stack)</h2>
   <button id="getBtn" onclick="getTicket()">Generate Quantum Ticket</button>
-  <div class="cooldown" id="cooldown"></div>
+  <span class="small" id="stackinfo"></span>
   <div id="curr"></div>
   <button id="buyBtn" onclick="buyTicket()" style="display:none">Buy This Ticket</button>
   <div class="uploader">
-    <button onclick="clearHistory()">Clear History</button>
     <button onclick="saveHistory()">Save History</button>
     <label style="display:inline-block">
       <input type="file" id="loadInput" style="display:none" onchange="loadHistory(event)">
       <button onclick="document.getElementById('loadInput').click()">Load History</button>
     </label>
+    <button onclick="clearHistory()">Clear History</button>
   </div>
   <h3>Saved Tickets:</h3>
   <div id="history"></div>
 <script>
 let currTicket = null;
-let cooldownEnd = null;
-let cooldownTimer = null;
+let quantumStack = [];
+const STACKSIZE = 1024;
 
-function clearHistory() {
-  localStorage.removeItem('lottoLog');
-  showHistory();
-  document.getElementById('curr').innerHTML = "";
-  document.getElementById('buyBtn').style.display = "none";
-}
-function startCooldown() {
-  cooldownEnd = Date.now() + 60 * 1000; // 1 minute from now
-  document.getElementById('getBtn').disabled = true;
-  updateCooldown();
-  if (cooldownTimer) clearInterval(cooldownTimer);
-  cooldownTimer = setInterval(updateCooldown, 175);
-}
-function updateCooldown() {
-  if (!cooldownEnd) return;
-  let ms = cooldownEnd - Date.now();
-  if (ms <= 0) {
-    clearInterval(cooldownTimer);
-    cooldownTimer = null;
-    cooldownEnd = null;
-    document.getElementById('cooldown').textContent = '';
-    document.getElementById('getBtn').disabled = false;
-    return;
+async function refillQuantumStack() {
+  document.getElementById('stackinfo').textContent = " — Loading quantum numbers...";
+  try {
+    let resp = await fetch(`https://qrng.anu.edu.au/API/jsonI.php?length=${STACKSIZE}&type=uint16`);
+    let data = await resp.json();
+    if (data.success) {
+      quantumStack = quantumStack.concat(data.data);
+      document.getElementById('stackinfo').textContent = ` — QRNG stack size: ${quantumStack.length}`;
+    } else throw "Quantum QRNG error";
+  } catch (e) {
+    document.getElementById('stackinfo').textContent = " — Quantum QRNG error!";
   }
-  let s = Math.ceil(ms / 1000);
-  document.getElementById('cooldown').textContent =
-    `Please wait ${s} second${s !== 1 ? 's' : ''} before next ticket.`;
 }
 
 async function getTicket() {
-  document.getElementById('curr').innerHTML = "Getting quantum numbers from ANU QRNG...";
+  document.getElementById('curr').innerHTML = "Drawing from quantum stack...";
   document.getElementById('buyBtn').style.display = "none";
-  startCooldown();
-  try {
-    let resp = await fetch('https://qrng.anu.edu.au/API/jsonI.php?length=10&type=uint16');
-    let data = await resp.json();
-    if (!data.success) throw "Quantum error";
-    let d = data.data;
-    let nums = [], i = 0;
-    while (nums.length < 5 && i < d.length) {
-      let n = Math.floor((d[i] / 65535) * 70) + 1;
-      if (!nums.includes(n)) nums.push(n);
-      i++;
-    }
-    if (nums.length < 5) throw "Too few unique numbers, try again!";
-    let mega = Math.floor((d[d.length-1] / 65535) * 25) + 1;
-    currTicket = {numbers: nums, mega: mega};
-    document.getElementById('curr').innerHTML =
-      `<div class="nums">
-        <b>White Balls:</b> ${nums.sort((a,b)=>a-b).map(x=>`<span class="ball">${x}</span>`).join('')}
-        <br><b>Mega Ball:</b> <span class="ball mega">${mega}</span>
-      </div>`;
-    document.getElementById('buyBtn').style.display = "inline-block";
-  } catch (e) {
-    document.getElementById('curr').innerHTML = "<b>Quantum QRNG error—try again!</b>";
+  // Refill if needed (async, doesn't block current batch, just guarantees new numbers for future draws)
+  if (quantumStack.length < 20) refillQuantumStack();
+  // If somehow totally run out, force wait
+  while (quantumStack.length < 6) {
+    await refillQuantumStack();
   }
+  // Draw numbers from stack
+  let nums = [], i = 0;
+  while (nums.length < 5 && i < quantumStack.length) {
+    let n = Math.floor((quantumStack[i] / 65535) * 70) + 1;
+    if (!nums.includes(n)) nums.push(n);
+    i++;
+  }
+  quantumStack = quantumStack.slice(i); // remove consumed numbers
+  if (nums.length < 5) {
+    document.getElementById('curr').innerHTML = "<b>Not enough unique numbers, try again!</b>";
+    return;
+  }
+  let mega = Math.floor((quantumStack[0] / 65535) * 25) + 1;
+  quantumStack.shift();
+  currTicket = {numbers: nums, mega: mega};
+  document.getElementById('curr').innerHTML =
+    `<div class="nums">
+      <b>White Balls:</b> ${nums.sort((a,b)=>a-b).map(x=>`<span class="ball">${x}</span>`).join('')}
+      <br><b>Mega Ball:</b> <span class="ball mega">${mega}</span>
+    </div>`;
+  document.getElementById('buyBtn').style.display = "inline-block";
+  document.getElementById('stackinfo').textContent = ` — QRNG stack size: ${quantumStack.length}`;
 }
 
 function buyTicket() {
@@ -132,9 +121,7 @@ function showHistory() {
       : "<i>No tickets saved yet.</i>";
 }
 
-// --- New features below ---
-
-// Save localStorage history to download
+// --- Save/Load/Clear History ---
 function saveHistory() {
   let logs = JSON.parse(localStorage.getItem('lottoLog')||'[]');
   let blob = new Blob([JSON.stringify(logs, null, 2)], {type: 'application/json'});
@@ -145,8 +132,6 @@ function saveHistory() {
   a.click();
   setTimeout(()=>{document.body.removeChild(a);}, 200);
 }
-
-// Load history file and overwrite local history
 function loadHistory(event) {
   let file = event.target.files[0];
   if (!file) return;
@@ -154,6 +139,7 @@ function loadHistory(event) {
   reader.onload = function(e) {
     try {
       let logs = JSON.parse(e.target.result);
+      if (!Array.isArray(logs)) throw "Bad file";
       localStorage.setItem('lottoLog', JSON.stringify(logs));
       showHistory();
       alert("History loaded successfully!");
@@ -163,8 +149,17 @@ function loadHistory(event) {
   };
   reader.readAsText(file);
 }
+function clearHistory() {
+  localStorage.removeItem('lottoLog');
+  showHistory();
+  document.getElementById('curr').innerHTML = "";
+  document.getElementById('buyBtn').style.display = "none";
+}
 
-window.onload = showHistory;
+window.onload = async function() {
+  await refillQuantumStack();
+  showHistory();
+};
 </script>
 </body>
 </html>
