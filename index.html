@@ -92,6 +92,7 @@ async function buyTicket() {
       Mega: currTicket.mega,
       ts: new Date().toISOString()
     }
+    
   };
   await fetch(SHEETY_API, {
     method: "POST",
